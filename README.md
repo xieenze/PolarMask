@@ -1,5 +1,85 @@
-# PolarMask
-code coming soon (preparing)    
-We are preparing and cleaning the code.    
-we will release the training and inference code of resnet50 as soon as possible.    
-We will update freequently and release resnet101, resnext101 model and add more tricks to imporve the performance in the future.
+# PolarMask: Single Shot Instance Segmentation with Polar Representation
+
+The code for implementing the **[PolarMask](https://arxiv.org/abs/1909.13226)**. 
+
+![image-20190807160835333](imgs/pipeline.png)
+
+## Highlights
+- **Simple:** Anchor-free, single-stage and can be easily embeded to many detectors such as FCOS.
+- **Unify:**  Our PolarMask first make object detection problem and instance segmentation problem into a unified dense regression problem.
+- **Inference Fast:** Our PolarMask-R50 can achieve 29.1AP(800) / 23.9FPS, 27.6AP(600) / 34.1FPS, AP(400) 22.9/ 46.7FPS on 1 V100 GPU.
+
+## Performances
+![Graph](imgs/visual.png)
+
+
+![Table](imgs/performance.png)
+
+All the training time is measured on 32 Maxwell TitanX or 4 V100 GPUs, we found they achieve very similar performance.
+
+All the inference speed is measured using converged models on 1 Maxwell TitanX / V100 GPU. We only report the model inference time.
+
+Note that we found the V100 is nearly three times faster than TitanX. More details can refer to paper Table 1(f). 
+
+
+## Results and Models
+For 32 gpus, we set 2000 iters to warmup instead of 500. So the total epoches is 14 for 1x.
+  
+And the performance is similar to 4gpus. Most of experiments are run on 32gpus in paper to fasten the process.
+
+The results are test on minival set.
+
+| Backbone  | Style   | GN  | MS train | Lr schd |  GPUs | Inf time (fps) | mask AP 
+|:---------:|:-------:|:----:|:-------:|:-------:|:-----:|:--------------:|:------:|
+| R-50      | caffe   | Y    | N       | 1x      |  4    | 8.9/23.9           | 28.9   |
+| R-101     | caffe   | Y    | N       | 1x      |  4    | -              | 30.7   | 
+| X-101     | caffe   | Y    | N       | 1x      |  4    | -              | 32.5   | 
+
+| Backbone  | Style   | GN  | MS train | Lr schd |  GPUs | Inf time (fps) | mask AP |
+|:---------:|:-------:|:----:|:-------:|:-------:|:-----:|:--------------:|:------: |
+| R-50      | caffe   | Y    | N       | 1x      |  32    | 8.9/23.9           | 29.1   | 
+| R-101     | caffe   | Y    | N       | 1x      |  32    | -              | 30.4   |
+| X-101     | caffe   | Y    | N       | 1x      |  32    | -              | 32.6   | 
+
+**Notes:**
+- The X-101 backbone is X-101-64x4d.
+- Dataloader is rewrited and it is slow because generating labels for rays is complex. We will try to speed up it in the futher.
+- All models are trained with 1x and without data augmentation. We will release 2x with ms train model in the future.
+
+
+## Installation
+Our PolarMask is based on [mmdetection](https://github.com/open-mmlab/mmdetection). Please check [INSTALL.md](INSTALL.md) for installation instructions.
+
+## Training and Testing
+**Train:**
+##### 1. 4gpu train(same as FCOS)
+- ```sh ./tools/dist_train.sh  configs/polarmask/4gpu/polar_768_1x_r50.py 4 --launcher pytorch --work_dir ./work_dirs/polar_768_1x_r50_4gpu```
+
+##### 2. 32gpu train(for fasten)
+- ```srun -p VI_ID_TITANX --job-name=PolarMask --gres=gpu:4 --ntasks=32 --ntasks-per-node=4 --kill-on-bad-exit=1 python -u tools/train.py configs/polarmask/32gpu/polar_768_1x_r50.py --launcher=slurm --work_dir ./work_dirs/polar_768_1x_r50_32gpu```
+
+
+
+**Test:**
+##### 4gpu test
+- ```sh tools/dist_test.sh configs/polarmask/4gpu/polar_768_1x_r50.py ./work_dirs/polar_768_1x_r50_4gpu/latest.pth 4 --out work_dirs/trash/res.pkl --eval segm```
+
+
+## Contributing to the project
+Any pull requests or issues are welcome.
+
+## Citations
+Please consider citing our paper in your publications if the project helps your research. BibTeX reference is as follows.
+
+```
+@article{xie2019polarmask,
+  title={PolarMask: Single Shot Instance Segmentation with Polar Representation},
+  author={Xie, Enze and Sun, Peize and Song, Xiaoge and Wang, Wenhai and Liu, Xuebo and Liang, Ding and Shen, Chunhua and Luo, Ping},
+  journal={arXiv preprint arXiv:1909.13226},
+  year={2019}
+}
+```
+
+## License
+
+For academic use, this project is licensed under the 2-clause BSD License - see the LICENSE file for details. For commercial use, please contact the authors. 
