@@ -29,6 +29,8 @@ And the performance is similar to 4gpus. Most of experiments are run on 32gpus i
 
 The results are test on minival set.
 
+Trained models can be download in [Google Drive](https://drive.google.com/drive/folders/1EWtLhWSGuJVtMCS8mTvKNxdYYpz7ufjV?usp=sharing).
+
 | Backbone  | Style   | GN  | MS train | Lr schd |  GPUs | Inf time (fps) | mask AP 
 |:---------:|:-------:|:----:|:-------:|:-------:|:-----:|:--------------:|:------:|
 | R-50      | caffe   | Y    | N       | 1x      |  4    | 8.9/23.9           | 28.9   |
