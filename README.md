@@ -7,7 +7,7 @@ The code for implementing the **[PolarMask](https://arxiv.org/abs/1909.13226)**.
 ## Highlights
 - **Simple:** Anchor-free, single-stage and can be easily embeded to many detectors such as FCOS.
 - **Unify:**  Our PolarMask first make object detection problem and instance segmentation problem into a unified dense regression problem.
-- **Inference Fast:** Our PolarMask-R50 can achieve 29.1AP(800) / 23.9FPS, 27.6AP(600) / 34.1FPS, AP(400) 22.9/ 46.7FPS on 1 V100 GPU.
+- **Inference Fast:** Our PolarMask-R50 can achieve 29.1AP(800) / 23.9FPS, 27.6AP(600) / 34.1FPS, 22.9AP(400) / 46.7FPS on 1 V100 GPU.
 
 ## Performances
 ![Graph](imgs/visual.png)
