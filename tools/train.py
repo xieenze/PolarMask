@@ -125,7 +125,7 @@ def test():
     cfg = Config.fromfile(args.config)
     cfg.gpus = 1
 
-    dataset = build_dataset(cfg.data.val)
+    dataset = build_dataset(cfg.data.train)
     embed(header='123123')
     # def visual(i):
     #     img = dataset[i]['img'].data

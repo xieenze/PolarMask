@@ -115,17 +115,32 @@ class Coco_Seg_Dataset(CustomDataset):
         # 1. mask: a binary map of the same size of the image.
         # 2. polys: each mask consists of one or several polys, each poly is a
         # list of float.
+
+
+        self.debug = False
+
         if with_mask:
             gt_masks = []
             gt_mask_polys = []
             gt_poly_lens = []
+
+        if self.debug:
+            count = 0
+            total = 0
         for i, ann in enumerate(ann_info):
             if ann.get('ignore', False):
                 continue
             x1, y1, w, h = ann['bbox']
             #filter bbox < 10
-            if ann['area'] <= 0 or w < 10 or h < 10:
+            if self.debug:
+                total+=1
+
+            if ann['area'] <= 15 or (w < 10 and h < 10) or self.coco.annToMask(ann).sum() < 15:
+                # print('filter, area:{},w:{},h:{}'.format(ann['area'],w,h))
+                if self.debug:
+                    count+=1
                 continue
+
             bbox = [x1, y1, x1 + w - 1, y1 + h - 1]
             if ann['iscrowd']:
                 gt_bboxes_ignore.append(bbox)
@@ -140,6 +155,9 @@ class Coco_Seg_Dataset(CustomDataset):
                 poly_lens = [len(p) for p in mask_polys]
                 gt_mask_polys.append(mask_polys)
                 gt_poly_lens.extend(poly_lens)
+
+        if self.debug:
+            print('filter:',count/total)
         if gt_bboxes:
             gt_bboxes = np.array(gt_bboxes, dtype=np.float32)
             gt_labels = np.array(gt_labels, dtype=np.int64)
@@ -255,6 +273,7 @@ class Coco_Seg_Dataset(CustomDataset):
 
 
         #--------------------offline ray label generation-----------------------------
+
         self.center_sample = True
         self.use_mask_center = False
         self.radius = 1.5
@@ -403,6 +422,8 @@ class Coco_Seg_Dataset(CustomDataset):
 
         m = []
         for p in range(num_points):
+            if self.debug:
+                vis = torch.zeros(gt_masks[0].shape).int().data.numpy()
             #不是pos就随便加
             if p not in pos_inds:
                 tmp = torch.zeros(36)
@@ -416,6 +437,16 @@ class Coco_Seg_Dataset(CustomDataset):
                 #计算36射线距离
                 dists, coords = self.get_36_coordinates(x,y,pos_mask_contour)
                 m.append(dists)
+
+                # debug visual code
+                if self.debug:
+                    print('debug visual'*10)
+                    for j in coords.keys():
+                        vis = pos_mask
+                        vis = cv2.circle(vis, (x, y), 3, 2, -1)
+                        x1, y1 = coords[j]
+                        vis = cv2.line(vis, (x, y), (x1, y1), 2, 1)
+                    cv2.imwrite('./trash/{}.jpg'.format(pos_mask_id),vis*127)
 
 
         mask_targets = torch.stack(m, 0).float()
@@ -596,6 +627,7 @@ class Coco_Seg_Dataset(CustomDataset):
             return self.prepare_test_img(idx)
         while True:
             data = self.prepare_train_img(idx)
+
             if data is None:
                 idx = self._rand_another(idx)
                 continue

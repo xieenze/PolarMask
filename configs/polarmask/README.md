@@ -12,21 +12,28 @@
 ```
 
 ## Results and Models
-For 32 gpus, we set 2000 iters to warmup instead of 500. So the total epoches is 14 for 1x.    
+For 32 gpus, we set 2000 iters to warmup instead of 500. So the total epoches is 14 for 1x. 
+   
 And the performance is similar to 4gpus. Most of experiments are run on 32gpus in paper to fasten the process.
 
-| Backbone  | Style   | GN  | MS train | Lr schd |  GPUs | Inf time (fps) | mask AP | Download |
-|:---------:|:-------:|:----:|:-------:|:-------:|:-----:|:--------------:|:------:|:--------:|
-| R-50      | caffe   | Y    | N       | 1x      |  4    | 23.9           | 28.9   | [model](https://s3.ap-northeast-2.amazonaws.com/open-mmlab/mmdetection/models/fcos/fcos_mstrain_640_800_r50_caffe_fpn_gn_2x_4gpu_20190516-f7329d80.pth) |
-| R-101     | caffe   | Y    | N       | 1x      |  4    | -              | 30.7   | [model](https://s3.ap-northeast-2.amazonaws.com/open-mmlab/mmdetection/models/fcos/fcos_mstrain_640_800_r101_caffe_fpn_gn_2x_4gpu_20190516-42e6f62d.pth) |
-| X-101     | caffe   | Y    | N       | 1x      |  4    | -              | 32.5   | [model](https://s3.ap-northeast-2.amazonaws.com/open-mmlab/mmdetection/models/fcos/fcos_mstrain_640_800_x101_64x4d_fpn_gn_2x_20190516-a36c0872.pth) |
+The results are test on minival set.
 
-| Backbone  | Style   | GN  | MS train | Lr schd |  GPUs | Inf time (fps) | mask AP | Download |
-|:---------:|:-------:|:----:|:-------:|:-------:|:-----:|:--------------:|:------:|:--------:|
-| R-50      | caffe   | Y    | N       | 1x      |  32    | 23.9           | 29.1   | [model](https://s3.ap-northeast-2.amazonaws.com/open-mmlab/mmdetection/models/fcos/fcos_mstrain_640_800_r50_caffe_fpn_gn_2x_4gpu_20190516-f7329d80.pth) |
-| R-101     | caffe   | Y    | N       | 1x      |  32    | -              | 30.4   | [model](https://s3.ap-northeast-2.amazonaws.com/open-mmlab/mmdetection/models/fcos/fcos_mstrain_640_800_r101_caffe_fpn_gn_2x_4gpu_20190516-42e6f62d.pth) |
-| X-101     | caffe   | Y    | N       | 1x      |  32    | -              | 32.6   | [model](https://s3.ap-northeast-2.amazonaws.com/open-mmlab/mmdetection/models/fcos/fcos_mstrain_640_800_x101_64x4d_fpn_gn_2x_20190516-a36c0872.pth) |
+Trained models can be download in [Google Drive](https://drive.google.com/drive/folders/1EWtLhWSGuJVtMCS8mTvKNxdYYpz7ufjV?usp=sharing).
 
+| Backbone  | Style   | GN  | MS train | Lr schd |  GPUs | Inf time (fps) | mask AP 
+|:---------:|:-------:|:----:|:-------:|:-------:|:-----:|:--------------:|:------:|
+| R-50      | caffe   | Y    | N       | 1x      |  4    | 8.9/23.9       | 28.9   |
+| R-101     | caffe   | Y    | N       | 1x      |  4    | -              | 30.7   | 
+| X-101     | pytorch   | Y  | N       | 1x      |  4    | -              | 32.5   | 
+
+| Backbone  | Style   | GN  | MS train | Lr schd |  GPUs | Inf time (fps) | mask AP|
+|:---------:|:-------:|:----:|:-------:|:-------:|:-----:|:--------------:|:------:|
+| R-50      | caffe   | Y    | N       | 1x      |  32    | 8.9/23.9      | 29.1   | 
+| R-101     | caffe   | Y    | N       | 1x      |  32    | -             | 30.4   |
+| X-101     | pytorch | Y    | N       | 1x      |  32    | -             | 32.6   | 
+| R-50      | caffe   | Y    | Y       | 2x      |  32    | 8.9/23.9      | 30.5   | 
+| R-101     | caffe   | Y    | Y       | 2x      |  32    | -             | 31.9   |
+| X-101     | pytorch | Y    | Y       | 2x      |  32    | -             | 33.5   | 
 **Notes:**
 - The X-101 backbone is X-101-64x4d.
 - Dataloader is rewrited and it is slow because generating labels for rays is complex. We will try to speed up it in the futher.
