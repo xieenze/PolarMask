@@ -275,7 +275,7 @@ class Coco_Seg_Dataset(CustomDataset):
         #--------------------offline ray label generation-----------------------------
 
         self.center_sample = True
-        self.use_mask_center = False
+        self.use_mask_center = True
         self.radius = 1.5
         self.strides = [8, 16, 32, 64, 128]
         self.regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512),(512, INF))
