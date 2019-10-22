@@ -47,9 +47,15 @@ Trained models can be download in [Google Drive](https://drive.google.com/drive/
 | R-50      | caffe   | Y    | N       | 1x      |  32    | 8.9/23.9      | 29.1   | 
 | R-101     | caffe   | Y    | N       | 1x      |  32    | -             | 30.4   |
 | X-101     | pytorch | Y    | N       | 1x      |  32    | -             | 32.6   | 
+| R-50-DCN  | caffe   | Y    | N       | 1x      |  32    | -             | 32.0   | 
+| R-101-DCN | caffe   | Y    | N       | 1x      |  32    | -             | 33.5   |
+| X-101-DCN | pytorch | Y    | N       | 1x      |  32    | -             | 34.9   | 
 | R-50      | caffe   | Y    | Y       | 2x      |  32    | 8.9/23.9      | 30.5   | 
 | R-101     | caffe   | Y    | Y       | 2x      |  32    | -             | 31.9   |
-| X-101     | pytorch | Y    | Y       | 2x      |  32    | -             | 33.5   | 
+| X-101     | pytorch | Y    | Y       | 2x      |  32    | -             | 33.5   |
+| R-50-DCN  | caffe   | Y    | Y       | 2x      |  32    | -             | 33.3   | 
+| R-101-DCN | caffe   | Y    | Y       | 2x      |  32    | -             | xx.x   |
+| X-101-DCN | pytorch | Y    | Y       | 2x      |  32    | -             | xx.x   |  
 
 **Notes:**
 - The X-101 backbone is X-101-64x4d.
