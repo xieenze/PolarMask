@@ -3,9 +3,11 @@ import torch.nn as nn
 from mmcv.cnn import normal_init
 
 from mmdet.core import distance2bbox, force_fp32, multi_apply, multiclass_nms, multiclass_nms_with_mask
+from mmdet.ops import ModulatedDeformConvPack
+
 from ..builder import build_loss
 from ..registry import HEADS
-from ..utils import ConvModule, Scale, bias_init_with_prob
+from ..utils import ConvModule, Scale, bias_init_with_prob, build_norm_layer
 from IPython import embed
 import cv2
 import numpy as np
@@ -26,6 +28,7 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
                  strides=(4, 8, 16, 32, 64),
                  regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512),
                                  (512, INF)),
+                 use_dcn=False,
                  loss_cls=dict(
                      type='FocalLoss',
                      use_sigmoid=True,
@@ -59,6 +62,7 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
         # xez add for polarmask
         self.center_sample = True
         self.use_mask_center = True
+        self.use_dcn = use_dcn
 
         # debug vis img
         self.vis_num = 1000
@@ -72,37 +76,80 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
         self.mask_convs = nn.ModuleList()
         for i in range(self.stacked_convs):
             chn = self.in_channels if i == 0 else self.feat_channels
-            self.cls_convs.append(
-                ConvModule(
-                    chn,
-                    self.feat_channels,
-                    3,
-                    stride=1,
-                    padding=1,
-                    conv_cfg=self.conv_cfg,
-                    norm_cfg=self.norm_cfg,
-                    bias=self.norm_cfg is None))
-            self.reg_convs.append(
-                ConvModule(
-                    chn,
-                    self.feat_channels,
-                    3,
-                    stride=1,
-                    padding=1,
-                    conv_cfg=self.conv_cfg,
-                    norm_cfg=self.norm_cfg,
-                    bias=self.norm_cfg is None))
-            self.mask_convs.append(
-                ConvModule(
-                    chn,
-                    self.feat_channels,
-                    3,
-                    stride=1,
-                    padding=1,
-                    conv_cfg=self.conv_cfg,
-                    norm_cfg=self.norm_cfg,
-                    bias=self.norm_cfg is None)
-            )
+            if not self.use_dcn:
+                self.cls_convs.append(
+                    ConvModule(
+                        chn,
+                        self.feat_channels,
+                        3,
+                        stride=1,
+                        padding=1,
+                        conv_cfg=self.conv_cfg,
+                        norm_cfg=self.norm_cfg,
+                        bias=self.norm_cfg is None))
+                self.reg_convs.append(
+                    ConvModule(
+                        chn,
+                        self.feat_channels,
+                        3,
+                        stride=1,
+                        padding=1,
+                        conv_cfg=self.conv_cfg,
+                        norm_cfg=self.norm_cfg,
+                        bias=self.norm_cfg is None))
+                self.mask_convs.append(
+                    ConvModule(
+                        chn,
+                        self.feat_channels,
+                        3,
+                        stride=1,
+                        padding=1,
+                        conv_cfg=self.conv_cfg,
+                        norm_cfg=self.norm_cfg,
+                        bias=self.norm_cfg is None))
+            else:
+                self.cls_convs.append(
+                    ModulatedDeformConvPack(
+                        chn,
+                        self.feat_channels,
+                        3,
+                        stride=1,
+                        padding=1,
+                        dilation=1,
+                        deformable_groups=1,
+                    ))
+                if self.norm_cfg:
+                    self.cls_convs.append(build_norm_layer(self.norm_cfg, self.feat_channels)[1])
+                self.cls_convs.append(nn.ReLU(inplace=True))
+
+                self.reg_convs.append(
+                    ModulatedDeformConvPack(
+                        chn,
+                        self.feat_channels,
+                        3,
+                        stride=1,
+                        padding=1,
+                        dilation=1,
+                        deformable_groups=1,
+                    ))
+                if self.norm_cfg:
+                    self.reg_convs.append(build_norm_layer(self.norm_cfg, self.feat_channels)[1])
+                self.reg_convs.append(nn.ReLU(inplace=True))
+
+                self.mask_convs.append(
+                    ModulatedDeformConvPack(
+                        chn,
+                        self.feat_channels,
+                        3,
+                        stride=1,
+                        padding=1,
+                        dilation=1,
+                        deformable_groups=1,
+                    ))
+                if self.norm_cfg:
+                    self.mask_convs.append(build_norm_layer(self.norm_cfg, self.feat_channels)[1])
+                self.mask_convs.append(nn.ReLU(inplace=True))
+
 
         self.fcos_cls = nn.Conv2d(
             self.feat_channels, self.cls_out_channels, 3, padding=1)
@@ -114,12 +161,15 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
         self.scales_mask = nn.ModuleList([Scale(1.0) for _ in self.strides])
 
     def init_weights(self):
-        for m in self.cls_convs:
-            normal_init(m.conv, std=0.01)
-        for m in self.reg_convs:
-            normal_init(m.conv, std=0.01)
-        for m in self.mask_convs:
-            normal_init(m.conv, std=0.01)
+        if not self.use_dcn:
+            for m in self.cls_convs:
+                normal_init(m.conv, std=0.01)
+            for m in self.reg_convs:
+                normal_init(m.conv, std=0.01)
+            for m in self.mask_convs:
+                normal_init(m.conv, std=0.01)
+        else:
+            pass
 
         bias_cls = bias_init_with_prob(0.01)
         normal_init(self.fcos_cls, std=0.01, bias=bias_cls)
