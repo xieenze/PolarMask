@@ -11,6 +11,7 @@ The code for implementing the **[PolarMask](https://arxiv.org/abs/1909.13226)**.
 
 
 ## News
+- PolarMask-X101 with DCN can achieve 34.9 mAP. Code is released.(2019.10.23)
 - PolarMask-X101 with 2x and multi-scale train can achieve 33.5 mAP. Code and trained models with 2x and mstrain for R50,R101 and X101 are released.(2019.10.19)
 
 
