@@ -11,6 +11,7 @@ The code for implementing the **[PolarMask](https://arxiv.org/abs/1909.13226)**.
 
 
 ## News
+- PolarMask-X101 with DCN, ms train and 2x can achieve 35.9 mAP. Code is released.(2019.10.26)
 - PolarMask-X101 with DCN can achieve 34.9 mAP. Code is released.(2019.10.23)
 - PolarMask-X101 with 2x and multi-scale train can achieve 33.5 mAP. Code and trained models with 2x and mstrain for R50,R101 and X101 are released.(2019.10.19)
 
@@ -59,7 +60,7 @@ Backbone  | Style   | GN  | MS train | Lr schd |  GPUs | Inf time (fps) | mask A
 | X-101     | pytorch | Y    | Y       | 2x      |  32    | -             | 33.5   |
 | R-50-DCN  | caffe   | Y    | Y       | 2x      |  32    | -             | 33.3   | 
 | R-101-DCN | caffe   | Y    | Y       | 2x      |  32    | -             | 34.3   |
-| X-101-DCN | pytorch | Y    | Y       | 2x      |  32    | -             | 36.0   |  
+| X-101-DCN | pytorch | Y    | Y       | 2x      |  32    | -             | 35.9   |  
 
 **Notes:**
 - The X-101 backbone is X-101-64x4d.
