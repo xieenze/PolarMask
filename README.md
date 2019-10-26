@@ -59,7 +59,7 @@ Backbone  | Style   | GN  | MS train | Lr schd |  GPUs | Inf time (fps) | mask A
 | X-101     | pytorch | Y    | Y       | 2x      |  32    | -             | 33.5   |
 | R-50-DCN  | caffe   | Y    | Y       | 2x      |  32    | -             | 33.3   | 
 | R-101-DCN | caffe   | Y    | Y       | 2x      |  32    | -             | 34.3   |
-| X-101-DCN | pytorch | Y    | Y       | 2x      |  32    | -             | xx.x   |  
+| X-101-DCN | pytorch | Y    | Y       | 2x      |  32    | -             | 36.0   |  
 
 **Notes:**
 - The X-101 backbone is X-101-64x4d.
@@ -69,6 +69,10 @@ Backbone  | Style   | GN  | MS train | Lr schd |  GPUs | Inf time (fps) | mask A
 ## Installation
 Our PolarMask is based on [mmdetection](https://github.com/open-mmlab/mmdetection). Please check [INSTALL.md](INSTALL.md) for installation instructions.
 
+## A quick Demo
+Please run the ```demo/visualize.py```. Note that the ```size_diviser``` of test need to be set 32. 
+Details can be found in [this issue](https://github.com/xieenze/PolarMask/issues/8#issuecomment-546577861).
+Thanks @zzzzzz0407 for his useful advice.
 ## Training and Testing
 **Train:**
 ##### 1. 4gpu train(same as FCOS)
