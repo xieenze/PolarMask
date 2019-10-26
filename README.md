@@ -73,7 +73,7 @@ Our PolarMask is based on [mmdetection](https://github.com/open-mmlab/mmdetectio
 ## A quick Demo
 Please run the ```demo/visualize.py```. Note that the ```size_diviser``` of test need to be set 32. 
 Details can be found in [this issue](https://github.com/xieenze/PolarMask/issues/8#issuecomment-546577861).
-Thanks @zzzzzz0407 for his useful advice.
+Thanks [@zzzzzz0407](https://github.com/zzzzzz0407) for his useful advice.
 ## Training and Testing
 **Train:**
 ##### 1. 4gpu train(same as FCOS)
