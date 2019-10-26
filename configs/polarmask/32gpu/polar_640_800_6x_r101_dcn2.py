@@ -1,15 +1,20 @@
 # model settings
 model = dict(
     type='FCOS',
-    pretrained='open-mmlab://resnet50_caffe',
+    pretrained='open-mmlab://resnet101_caffe',
     backbone=dict(
         type='ResNet',
-        depth=50,
+        depth=101,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
         frozen_stages=1,
         norm_cfg=dict(type='BN', requires_grad=False),
-        style='caffe'),
+        style='caffe',
+        dcn = dict(
+            modulated=True,
+            deformable_groups=1,
+            fallback_on_stride=False),
+      stage_with_dcn = (False, True, True, True)),
     neck=dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
@@ -26,6 +31,7 @@ model = dict(
         stacked_convs=4,
         feat_channels=256,
         strides=[8, 16, 32, 64, 128],
+        use_dcn=True,
         loss_cls=dict(
             type='FocalLoss',
             use_sigmoid=True,
@@ -58,15 +64,16 @@ data_root = 'data/coco/'
 img_norm_cfg = dict(
     mean=[102.9801, 115.9465, 122.7717], std=[1.0, 1.0, 1.0], to_rgb=False)
 data = dict(
-    imgs_per_gpu=4,
-    workers_per_gpu=15,
+    imgs_per_gpu=1,
+    workers_per_gpu=4,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_train2017.json',
         img_prefix=data_root + 'train2017/',
-        img_scale=(1280, 768),
+        img_scale=[(1333, 640), (1333, 800)],
+        multiscale_mode='range',
         img_norm_cfg=img_norm_cfg,
-        # size_divisor=0,
+        size_divisor=128,
         flip_ratio=0.5,
         with_mask=True,
         with_crowd=False,
@@ -76,9 +83,9 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val2017.json',
         img_prefix=data_root + 'val2017/',
-        img_scale=(1280, 768),
+        img_scale=(1333, 800),
         img_norm_cfg=img_norm_cfg,
-        # size_divisor=0,
+        size_divisor=128,
         flip_ratio=0,
         with_mask=False,
         with_crowd=False,
@@ -88,9 +95,9 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val2017.json',
         img_prefix=data_root + 'val2017/',
-        img_scale=(1280, 768),
+        img_scale=(1333, 800),
         img_norm_cfg=img_norm_cfg,
-        size_divisor=32,
+        size_divisor=128,
         flip_ratio=0,
         with_mask=False,
         with_crowd=False,
@@ -98,7 +105,7 @@ data = dict(
         resize_keep_ratio=False,
         test_mode=True))
 # optimizer
-lr_ratio = 1
+lr_ratio = 2
 
 optimizer = dict(
     type='SGD',
@@ -111,9 +118,9 @@ optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 lr_config = dict(
     policy='step',
     warmup='linear',
-    warmup_iters=500,
+    warmup_iters=2000 ,
     warmup_ratio=1.0 / 3 / lr_ratio,
-    step=[8, 11])
+    step=[8*6+2, 11*6+2])
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
@@ -124,7 +131,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 12
+total_epochs = 12*6+2
 device_ids = range(4)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'

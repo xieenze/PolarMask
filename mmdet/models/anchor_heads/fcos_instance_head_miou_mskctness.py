@@ -429,8 +429,8 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
             assert cls_score.size()[-2:] == bbox_pred.size()[-2:]
             scores = cls_score.permute(1, 2, 0).reshape(
                 -1, self.cls_out_channels).sigmoid()
-            centerness = centerness.permute(1, 2, 0).reshape(-1).sigmoid()
 
+            centerness = centerness.permute(1, 2, 0).reshape(-1).sigmoid()
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
             mask_pred = mask_pred.permute(1, 2, 0).reshape(-1, 36)
             nms_pre = cfg.get('nms_pre', -1)
@@ -509,7 +509,7 @@ def distance2mask(points, distances, max_shape=None):
     mask_points = []
     for i in range(36):
         dist = distances[:, i]
-        angle = torch.tensor(i * 10 / 180 * math.pi)
+        angle = torch.tensor(i * 10 / 180 * math.pi).cuda()
         sin = torch.sin(angle)
         cos = torch.cos(angle)
         '''x/dist=sin, y/dist=cos'''
