@@ -68,6 +68,9 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
         self.vis_num = 1000
         self.count = 0
 
+        # test
+        self.angles = torch.range(0, 350, 10).cuda() / 180 * math.pi
+
         self._init_layers()
 
     def _init_layers(self):
@@ -443,8 +446,8 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
                 scores = scores[topk_inds, :]
                 centerness = centerness[topk_inds]
             bboxes = distance2bbox(points, bbox_pred, max_shape=img_shape)
-            masks = distance2mask(points, mask_pred, max_shape=img_shape)
-
+            masks = distance2mask(points, mask_pred, self.angles, max_shape=img_shape)
+            
             mlvl_bboxes.append(bboxes)
             mlvl_scores.append(scores)
             mlvl_centerness.append(centerness)
@@ -494,35 +497,35 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
 
 
 # test
-def distance2mask(points, distances, max_shape=None):
+def distance2mask(points, distances, angles, max_shape=None):
     '''Decode distance prediction to 36 mask points
     Args:
         points (Tensor): Shape (n, 2), [x, y].
         distance (Tensor): Distance from the given point to 36,from angle 0 to 350.
+        angles (Tensor):
         max_shape (tuple): Shape of the image.
 
     Returns:
         Tensor: Decoded masks.
     '''
+    num_points = points.shape[0]
+    points = points[:,:,None].repeat(1,1,36)
     c_x, c_y = points[:, 0], points[:, 1]
 
-    mask_points = []
-    for i in range(36):
-        dist = distances[:, i]
-        angle = torch.tensor(i * 10 / 180 * math.pi).cuda()
-        sin = torch.sin(angle)
-        cos = torch.cos(angle)
-        '''x/dist=sin, y/dist=cos'''
+    sin = torch.sin(angles)
+    cos = torch.cos(angles)
+    sin = sin[None, :].repeat(num_points, 1)
+    cos = cos[None, :].repeat(num_points, 1)
 
-        x = -dist * cos + c_x
-        y = dist * sin + c_y
-        if max_shape is not None:
-            x = x.clamp(min=0, max=max_shape[1] - 1)
-            y = y.clamp(min=0, max=max_shape[0] - 1)
 
-        mask_point = torch.stack([x, y], -1)
-        mask_points.append(mask_point)
-    return torch.stack(mask_points, -1)
+    x = -distances * cos + c_x
+    y = distances * sin + c_y
+    if max_shape is not None:
+        x = x.clamp(min=0, max=max_shape[1] - 1)
+        y = y.clamp(min=0, max=max_shape[0] - 1)
+
+    res = torch.cat([x[:,None,:],y[:,None,:]],dim=1)
+    return res
 
 
 
