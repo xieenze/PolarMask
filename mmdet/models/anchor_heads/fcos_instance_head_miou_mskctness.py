@@ -458,10 +458,10 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
         if rescale:
             _mlvl_bboxes = mlvl_bboxes/ mlvl_bboxes.new_tensor(scale_factor)
             try:
-                _mlvl_masks = mlvl_masks / mlvl_masks.new_tensor(scale_factor)
-            except:
                 scale_factor = torch.Tensor(scale_factor)[:2].cuda().unsqueeze(1).repeat(1, 36)
                 _mlvl_masks = mlvl_masks / scale_factor
+            except:
+                _mlvl_masks = mlvl_masks / mlvl_masks.new_tensor(scale_factor)
 
         mlvl_scores = torch.cat(mlvl_scores)
         padding = mlvl_scores.new_zeros(mlvl_scores.shape[0], 1)
