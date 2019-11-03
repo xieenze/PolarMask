@@ -118,7 +118,6 @@ def bbox2roi(bbox_list):
         Tensor: shape (n, 5), [batch_ind, x1, y1, x2, y2]
     """
     rois_list = []
-    mask_img
     for img_id, bboxes in enumerate(bbox_list):
         if bboxes.size(0) > 0:
             img_inds = bboxes.new_full((bboxes.size(0), 1), img_id)
