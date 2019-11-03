@@ -11,7 +11,7 @@ The code for implementing the **[PolarMask](https://arxiv.org/abs/1909.13226)**.
 
 
 ## News
-- Fast DataLoader is updated. Please Check [coco_seg_fast.py](mmdet/datasets/coco_seg_fast.py). 
+- Fast DataLoader is updated. Please Check [coco_seg_fast.py](mmdet/datasets/coco_seg_fast.py) and [config file](configs/polarmask/32gpu/polar_768_1x_r50_FastLoader.py). 
 Changes can be found in [FastLoader](imgs/FastLoader.png). 
 The training speed can improve 100% and the performance is nearly the same.(2019.11.04)
 - PolarMask-X101 with DCN, ms train and 2x can achieve 35.9 mAP. Code is released.(2019.10.26)
