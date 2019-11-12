@@ -13,7 +13,6 @@ from .xml_style import XMLDataset
 
 #xez
 from .coco_seg import Coco_Seg_Dataset
-from .coco_seg_fast import Coco_SegFast_Dataset
 
 
 __all__ = [
@@ -21,5 +20,5 @@ __all__ = [
     'CityscapesDataset', 'GroupSampler', 'DistributedGroupSampler',
     'build_dataloader', 'to_tensor', 'random_scale', 'show_ann',
     'ConcatDataset', 'RepeatDataset', 'ExtraAugmentation', 'WIDERFaceDataset',
-    'DATASETS', 'build_dataset', 'Coco_Seg_Dataset','Coco_SegFast_Dataset'
+    'DATASETS', 'build_dataset', 'Coco_Seg_Dataset'
 ]
