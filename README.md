@@ -41,7 +41,7 @@ Trained models can be download in [Google Drive](https://drive.google.com/drive/
 
 | Backbone  | Style   | GN  | MS train | Lr schd |  GPUs | Inf time (fps) | mask AP 
 |:---------:|:-------:|:----:|:-------:|:-------:|:-----:|:--------------:|:------:|
-| R-50      | caffe   | Y    | N       | 1x      |  4    | 8.9/23.9       | 28.9   |
+| R-50      | caffe   | Y    | N       | 1x      |  4    | 8.9/23.9       | 29.2   |
 | R-101     | caffe   | Y    | N       | 1x      |  4    | -              | 30.7   | 
 | X-101     | pytorch   | Y  | N       | 1x      |  4    | -              | 32.5   | 
 
