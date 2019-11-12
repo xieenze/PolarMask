@@ -1,9 +1,9 @@
 # model settings
 model = dict(
-    type='FCOS',
+    type='PolarMask',
     pretrained='open-mmlab://resnet101_caffe',
     backbone=dict(
-        type='ResNet',
+        type='PolarMask',
         depth=101,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
@@ -25,7 +25,7 @@ model = dict(
         num_outs=5,
         relu_before_extra_convs=True),
     bbox_head=dict(
-        type='FCOS_Instance_Head_MIOU_MSKCTNESS',
+        type='PolarMask_Head',
         num_classes=81,
         in_channels=256,
         stacked_convs=4,

@@ -1,6 +1,6 @@
 # model settings
 model = dict(
-    type='FCOS',
+    type='PolarMask',
     pretrained='open-mmlab://resnet50_caffe',
     backbone=dict(
         type='ResNet',
@@ -20,7 +20,7 @@ model = dict(
         num_outs=5,
         relu_before_extra_convs=True),
     bbox_head=dict(
-        type='FCOS_Instance_Head_MIOU_MSKCTNESS',
+        type='PolarMask_Head',
         num_classes=81,
         in_channels=256,
         stacked_convs=4,
@@ -59,7 +59,7 @@ img_norm_cfg = dict(
     mean=[102.9801, 115.9465, 122.7717], std=[1.0, 1.0, 1.0], to_rgb=False)
 data = dict(
     imgs_per_gpu=4,
-    workers_per_gpu=15,
+    workers_per_gpu=5,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_train2017.json',

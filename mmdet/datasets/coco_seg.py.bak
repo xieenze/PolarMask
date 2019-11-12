@@ -28,7 +28,6 @@ from .transforms import (BboxTransform, ImageTransform, MaskTransform,
                          Numpy2Tensor, SegMapTransform, SegmapTransform)
 from .utils import random_scale, to_tensor
 from IPython import embed
-import time
 
 INF = 1e8
 
@@ -297,8 +296,7 @@ class Coco_Seg_Dataset(CustomDataset):
         gt_bboxes = torch.Tensor(gt_bboxes)
         gt_labels = torch.Tensor(gt_labels)
 
-
-        _labels, _bbox_targets, _mask_targets = self.polar_target_single(
+        _labels, _bbox_targets, _mask_targets = self.fcos_target_single(
             gt_bboxes,gt_masks,gt_labels,concat_points, concat_regress_ranges)
 
         data['_gt_labels'] = DC(_labels)
@@ -334,7 +332,7 @@ class Coco_Seg_Dataset(CustomDataset):
             (x.reshape(-1), y.reshape(-1)), dim=-1) + stride // 2
         return points.float()
 
-    def polar_target_single(self, gt_bboxes, gt_masks, gt_labels, points, regress_ranges):
+    def fcos_target_single(self, gt_bboxes, gt_masks, gt_labels, points, regress_ranges):
         num_points = points.size(0)
         num_gts = gt_labels.size(0)
         if num_gts == 0:
@@ -346,6 +344,7 @@ class Coco_Seg_Dataset(CustomDataset):
         # TODO: figure out why these two are different
         # areas = areas[None].expand(num_points, num_gts)
         areas = areas[None].repeat(num_points, 1)
+
         regress_ranges = regress_ranges[:, None, :].expand(
             num_points, num_gts, 2)
         gt_bboxes = gt_bboxes[None].expand(num_points, num_gts, 4)
@@ -353,6 +352,7 @@ class Coco_Seg_Dataset(CustomDataset):
         xs, ys = points[:, 0], points[:, 1]
         xs = xs[:, None].expand(num_points, num_gts)
         ys = ys[:, None].expand(num_points, num_gts)
+
         left = xs - gt_bboxes[..., 0]
         right = gt_bboxes[..., 2] - xs
         top = ys - gt_bboxes[..., 1]
@@ -360,17 +360,15 @@ class Coco_Seg_Dataset(CustomDataset):
         bbox_targets = torch.stack((left, top, right, bottom), -1)   #feature map上所有点对于gtbox的上下左右距离 [num_pix, num_gt, 4]
 
 
-
         #mask targets 也按照这种写 同时labels 得从bbox中心修改成mask 重心
         mask_centers = []
         mask_contours = []
         #第一步 先算重心  return [num_gt, 2]
-
-
         for mask in gt_masks:
             cnt, contour = self.get_single_centerpoint(mask)
             contour = contour[0]
             contour = torch.Tensor(contour).float()
+
             y, x = cnt
             mask_centers.append([x,y])
             mask_contours.append(contour)
@@ -404,6 +402,7 @@ class Coco_Seg_Dataset(CustomDataset):
         # condition2: limit the regression range for each location
         max_regress_distance = bbox_targets.max(-1)[0]
 
+
         inside_regress_range = (
             max_regress_distance >= regress_ranges[..., 0]) & (
             max_regress_distance <= regress_ranges[..., 1])
@@ -415,18 +414,43 @@ class Coco_Seg_Dataset(CustomDataset):
         labels = gt_labels[min_area_inds]
         labels[min_area == INF] = 0         #[num_gt] 介于0-80
 
+
         bbox_targets = bbox_targets[range(num_points), min_area_inds]
+
+
         pos_inds = labels.nonzero().reshape(-1)
 
-        mask_targets = torch.zeros(num_points, 36).float()
+        m = []
+        for p in range(num_points):
+            if self.debug:
+                vis = torch.zeros(gt_masks[0].shape).int().data.numpy()
+            #不是pos就随便加
+            if p not in pos_inds:
+                tmp = torch.zeros(36)
+                m.append(tmp)
+            #是pos的话  算重心
+            else:
+                pos_mask_id = min_area_inds[p]
+                pos_mask = gt_masks[pos_mask_id]
+                pos_mask_contour = mask_contours[pos_mask_id]
+                x,y = points[p]
+                #计算36射线距离
+                dists, coords = self.get_36_coordinates(x,y,pos_mask_contour)
+                m.append(dists)
 
-        pos_mask_ids = min_area_inds[pos_inds]
-        for p,id in zip(pos_inds, pos_mask_ids):
-            x, y = points[p]
-            pos_mask_contour = mask_contours[id]
+                # debug visual code
+                if self.debug:
+                    print('debug visual'*10)
+                    for j in coords.keys():
+                        vis = pos_mask
+                        vis = cv2.circle(vis, (x, y), 3, 2, -1)
+                        x1, y1 = coords[j]
+                        vis = cv2.line(vis, (x, y), (x1, y1), 2, 1)
+                    cv2.imwrite('./trash/{}.jpg'.format(pos_mask_id),vis*127)
 
-            dists, coords = self.get_36_coordinates(x, y, pos_mask_contour)
-            mask_targets[p] = dists
+
+        mask_targets = torch.stack(m, 0).float()
+
 
         return labels, bbox_targets, mask_targets
 
@@ -515,6 +539,8 @@ class Coco_Seg_Dataset(CustomDataset):
         return [int(x), int(y)]
 
     def get_single_centerpoint(self, mask):
+        # if type(mask) == torch.Tensor:
+        #     mask = mask.data.cpu().numpy().astype('uint8')
         contour, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
         contour.sort(key=lambda x: cv2.contourArea(x), reverse=True) #only save the biggest one
         '''debug IndexError: list index out of range'''
@@ -524,63 +550,73 @@ class Coco_Seg_Dataset(CustomDataset):
         except:
             x,y = count.mean(axis=0)
             center=[int(x), int(y)]
-
-        # max_points = 360
-        # if len(contour[0]) > max_points:
-        #     compress_rate = len(contour[0]) // max_points
-        #     contour[0] = contour[0][::compress_rate, ...]
         return center, contour
 
     def get_36_coordinates(self, c_x, c_y, pos_mask_contour):
-        ct = pos_mask_contour[:, 0, :]
-        x = ct[:, 0] - c_x
-        y = ct[:, 1] - c_y
-        # angle = np.arctan2(x, y)*180/np.pi
-        angle = torch.atan2(x, y) * 180 / np.pi
-        angle[angle < 0] += 360
-        angle = angle.int()
-        # dist = np.sqrt(x ** 2 + y ** 2)
-        dist = torch.sqrt(x ** 2 + y ** 2)
-        angle, idx = torch.sort(angle)
-        dist = dist[idx]
-
+        #计算contour上所有点和角度
+        coordinate = {}
+        for i in pos_mask_contour[:, 0, :]:
+            x1, y1 = i
+            x2, y2 = c_x, c_y
+            v = [x1, y1, x2, y2]
+            angle = get_angle(v)
+            dis = (x1 - x2) ** 2 + (y1 - y2) ** 2
+            if not angle in coordinate.keys():
+                coordinate[angle] = [x1, y1, dis]
+            elif dis > coordinate[angle][2]:
+                coordinate[angle] = [x1, y1, dis]  #get longest dist
+            else:
+                continue
         #生成36个角度
         new_coordinate = {}
         for i in range(0, 360, 10):
-            if i in angle:
-                d = dist[angle==i].max()
-                new_coordinate[i] = d
-            elif i + 1 in angle:
-                d = dist[angle == i+1].max()
-                new_coordinate[i] = d
-            elif i - 1 in angle:
-                d = dist[angle == i-1].max()
-                new_coordinate[i] = d
-            elif i + 2 in angle:
-                d = dist[angle == i+2].max()
-                new_coordinate[i] = d
-            elif i - 2 in angle:
-                d = dist[angle == i-2].max()
-                new_coordinate[i] = d
-            elif i + 3 in angle:
-                d = dist[angle == i+3].max()
-                new_coordinate[i] = d
-            elif i - 3 in angle:
-                d = dist[angle == i-3].max()
-                new_coordinate[i] = d
-
-
-        distances = torch.zeros(36)
-
+            if i in coordinate.keys():
+                angle = i
+                x, y, dis = coordinate[i]
+                new_coordinate[angle] = [x, y]
+            elif i + 1 in coordinate.keys():
+                angle = i
+                x, y, dis = coordinate[i + 1]
+                new_coordinate[angle] = [x, y]
+            elif i - 1 in coordinate.keys():
+                angle = i
+                x, y, dis = coordinate[i - 1]
+                new_coordinate[angle] = [x, y]
+            elif i + 2 in coordinate.keys():
+                angle = i
+                x, y, dis = coordinate[i + 2]
+                new_coordinate[angle] = [x, y]
+            elif i - 2 in coordinate.keys():
+                angle = i
+                x, y, dis = coordinate[i - 2]
+                new_coordinate[angle] = [x, y]
+            elif i + 3 in coordinate.keys():
+                angle = i
+                x, y, dis = coordinate[i + 3]
+                new_coordinate[angle] = [x, y]
+            elif i - 3 in coordinate.keys():
+                angle = i
+                x, y, dis = coordinate[i - 3]
+                new_coordinate[angle] = [x, y]
+        #缺失的角度用临近的点插值
         for a in range(0, 360, 10):
             if not a in new_coordinate.keys():
-                new_coordinate[a] = torch.tensor(1e-6)
-                distances[a//10] = 1e-6
-            else:
-                distances[a//10] = new_coordinate[a]
-        # for idx in range(36):
-        #     dist = new_coordinate[idx * 10]
-        #     distances[idx] = dist
+                try:
+                    x1, y1 = new_coordinate[a - 10]
+                    x2, y2 = new_coordinate[a + 10]
+                    new_coordinate[a] = [(x1 + x2) / 2, (y1 + y2) / 2]
+                except:
+                    #angle missing bug
+                    new_coordinate[a] = [c_x, c_y]
+        #计算x,y(fmap上的重心坐标) 和 36个点的距离
+        distances = torch.zeros(36)
+        for idx in range(36):
+            target_x, target_y = new_coordinate[idx*10]
+            dist = torch.sqrt((c_x-target_x)**2+(c_y-target_y)**2)
+            #确保最小的距离>0
+            if dist == 0:
+                dist = 1e-6
+            distances[idx] = dist
 
         return distances, new_coordinate
 

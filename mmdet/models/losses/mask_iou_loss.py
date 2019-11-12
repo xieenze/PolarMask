@@ -23,8 +23,6 @@ class MaskIOULoss(nn.Module):
         l_max = total.max(dim=2)[0]
         l_min = total.min(dim=2)[0]
 
-        # loss = 2 * (l_max.prod(dim=1) / l_min.prod(dim=1)).log()
-        # loss = 2 * (l_max.log().sum(dim=1) - l_min.log().sum(dim=1))
         loss = (l_max.sum(dim=1) / l_min.sum(dim=1)).log()
         loss = loss * weight
         loss = loss.sum() / avg_factor

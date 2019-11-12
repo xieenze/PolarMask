@@ -58,49 +58,24 @@ class SingleStageDetector(BaseDetector):
                       img_metas,
                       gt_bboxes,
                       gt_labels,
-                      gt_masks=None,
-                      gt_bboxes_ignore=None,
-                      _gt_labels=None,
-                      _gt_bboxes=None,
-                      _gt_masks=None
-                      ):
-
-        if _gt_labels is not None:
-            extra_data = dict(_gt_labels=_gt_labels,
-                              _gt_bboxes=_gt_bboxes,
-                              _gt_masks=_gt_masks)
-        else:
-            extra_data = None
-
-
+                      gt_bboxes_ignore=None):
         x = self.extract_feat(img)
         outs = self.bbox_head(x)
         loss_inputs = outs + (gt_bboxes, gt_labels, img_metas, self.train_cfg)
-
         losses = self.bbox_head.loss(
-            *loss_inputs,
-            gt_masks = gt_masks,
-            gt_bboxes_ignore=gt_bboxes_ignore,
-            extra_data=extra_data
-        )
+            *loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore)
         return losses
 
     def simple_test(self, img, img_meta, rescale=False):
-
         x = self.extract_feat(img)
         outs = self.bbox_head(x)
-
         bbox_inputs = outs + (img_meta, self.test_cfg, rescale)
         bbox_list = self.bbox_head.get_bboxes(*bbox_inputs)
-
-        results = [
-            bbox_mask2result(det_bboxes, det_masks, det_labels, self.bbox_head.num_classes, img_meta[0])
-            for det_bboxes, det_labels, det_masks in bbox_list]
-
-        bbox_results = results[0][0]
-        mask_results = results[0][1]
-
-        return bbox_results, mask_results
+        bbox_results = [
+            bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
+            for det_bboxes, det_labels in bbox_list
+        ]
+        return bbox_results[0]
 
     def aug_test(self, imgs, img_metas, rescale=False):
         raise NotImplementedError

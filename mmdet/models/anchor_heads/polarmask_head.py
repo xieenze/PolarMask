@@ -18,7 +18,7 @@ INF = 1e8
 
 
 @HEADS.register_module
-class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
+class PolarMask_Head(nn.Module):
 
     def __init__(self,
                  num_classes,
@@ -29,6 +29,7 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
                  regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512),
                                  (512, INF)),
                  use_dcn=False,
+                 mask_nms=False,
                  loss_cls=dict(
                      type='FocalLoss',
                      use_sigmoid=True,
@@ -43,7 +44,7 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
                      loss_weight=1.0),
                  conv_cfg=None,
                  norm_cfg=dict(type='GN', num_groups=32, requires_grad=True)):
-        super(FCOS_Instance_Head_MIOU_MSKCTNESS, self).__init__()
+        super(PolarMask_Head, self).__init__()
 
         self.num_classes = num_classes
         self.cls_out_channels = num_classes - 1
@@ -63,6 +64,7 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
         self.center_sample = True
         self.use_mask_center = True
         self.use_dcn = use_dcn
+        self.mask_nms = mask_nms
 
         # debug vis img
         self.vis_num = 1000
@@ -153,12 +155,11 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
                     self.mask_convs.append(build_norm_layer(self.norm_cfg, self.feat_channels)[1])
                 self.mask_convs.append(nn.ReLU(inplace=True))
 
-
-        self.fcos_cls = nn.Conv2d(
+        self.polar_cls = nn.Conv2d(
             self.feat_channels, self.cls_out_channels, 3, padding=1)
-        self.fcos_reg = nn.Conv2d(self.feat_channels, 4, 3, padding=1)
-        self.fcos_mask = nn.Conv2d(self.feat_channels, 36, 3, padding=1)
-        self.fcos_centerness = nn.Conv2d(self.feat_channels, 1, 3, padding=1)
+        self.polar_reg = nn.Conv2d(self.feat_channels, 4, 3, padding=1)
+        self.polar_mask = nn.Conv2d(self.feat_channels, 36, 3, padding=1)
+        self.polar_centerness = nn.Conv2d(self.feat_channels, 1, 3, padding=1)
 
         self.scales_bbox = nn.ModuleList([Scale(1.0) for _ in self.strides])
         self.scales_mask = nn.ModuleList([Scale(1.0) for _ in self.strides])
@@ -175,10 +176,10 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
             pass
 
         bias_cls = bias_init_with_prob(0.01)
-        normal_init(self.fcos_cls, std=0.01, bias=bias_cls)
-        normal_init(self.fcos_reg, std=0.01)
-        normal_init(self.fcos_mask, std=0.01)
-        normal_init(self.fcos_centerness, std=0.01)
+        normal_init(self.polar_cls, std=0.01, bias=bias_cls)
+        normal_init(self.polar_reg, std=0.01)
+        normal_init(self.polar_mask, std=0.01)
+        normal_init(self.polar_centerness, std=0.01)
 
     def forward(self, feats):
         return multi_apply(self.forward_single, feats, self.scales_bbox, self.scales_mask)
@@ -190,18 +191,18 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
 
         for cls_layer in self.cls_convs:
             cls_feat = cls_layer(cls_feat)
-        cls_score = self.fcos_cls(cls_feat)
-        centerness = self.fcos_centerness(cls_feat)
+        cls_score = self.polar_cls(cls_feat)
+        centerness = self.polar_centerness(cls_feat)
 
         for reg_layer in self.reg_convs:
             reg_feat = reg_layer(reg_feat)
         # scale the bbox_pred of different level
         # float to avoid overflow when enabling FP16
-        bbox_pred = scale_bbox(self.fcos_reg(reg_feat)).float().exp()
+        bbox_pred = scale_bbox(self.polar_reg(reg_feat)).float().exp()
 
         for mask_layer in self.mask_convs:
             mask_feat = mask_layer(mask_feat)
-        mask_pred = scale_mask(self.fcos_mask(mask_feat)).float().exp()
+        mask_pred = scale_mask(self.polar_mask(mask_feat)).float().exp()
 
         return cls_score, bbox_pred, centerness, mask_pred
 
@@ -223,7 +224,7 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
         all_level_points = self.get_points(featmap_sizes, bbox_preds[0].dtype,
                                            bbox_preds[0].device)
 
-        labels, bbox_targets, mask_targets = self.fcos_target(all_level_points, extra_data)
+        labels, bbox_targets, mask_targets = self.polar_target(all_level_points, extra_data)
 
         num_imgs = cls_scores[0].size(0)
         # flatten cls_scores, bbox_preds and centerness
@@ -265,14 +266,12 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
         if num_pos > 0:
             pos_bbox_targets = flatten_bbox_targets[pos_inds]
             pos_mask_targets = flatten_mask_targets[pos_inds]
-            pos_centerness_targets = self.centerness_target(pos_mask_targets)
-
+            pos_centerness_targets = self.polar_centerness_target(pos_mask_targets)
 
             pos_points = flatten_points[pos_inds]
             pos_decoded_bbox_preds = distance2bbox(pos_points, pos_bbox_preds)
             pos_decoded_target_preds = distance2bbox(pos_points,
                                                      pos_bbox_targets)
-
 
             # centerness weighted iou loss
             loss_bbox = self.loss_bbox(
@@ -284,8 +283,6 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
                                        pos_mask_targets,
                                        weight=pos_centerness_targets,
                                        avg_factor=pos_centerness_targets.sum())
-
-
 
             loss_centerness = self.loss_centerness(pos_centerness,
                                                    pos_centerness_targets)
@@ -329,7 +326,7 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
             (x.reshape(-1), y.reshape(-1)), dim=-1) + stride // 2
         return points
 
-    def fcos_target(self, points, extra_data):
+    def polar_target(self, points, extra_data):
         assert len(points) == len(self.regress_ranges)
 
         num_levels = len(points)
@@ -364,13 +361,10 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
 
         return concat_lvl_labels, concat_lvl_bbox_targets, concat_lvl_mask_targets
 
-
-    def centerness_target(self, pos_mask_targets):
+    def polar_centerness_target(self, pos_mask_targets):
         # only calculate pos centerness targets, otherwise there may be nan
         centerness_targets = (pos_mask_targets.min(dim=-1)[0] / pos_mask_targets.max(dim=-1)[0])
         return torch.sqrt(centerness_targets)
-
-
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds', 'centernesses'))
     def get_bboxes(self,
@@ -447,7 +441,7 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
                 centerness = centerness[topk_inds]
             bboxes = distance2bbox(points, bbox_pred, max_shape=img_shape)
             masks = distance2mask(points, mask_pred, self.angles, max_shape=img_shape)
-            
+
             mlvl_bboxes.append(bboxes)
             mlvl_scores.append(scores)
             mlvl_centerness.append(centerness)
@@ -456,7 +450,7 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
         mlvl_bboxes = torch.cat(mlvl_bboxes)
         mlvl_masks = torch.cat(mlvl_masks)
         if rescale:
-            _mlvl_bboxes = mlvl_bboxes/ mlvl_bboxes.new_tensor(scale_factor)
+            _mlvl_bboxes = mlvl_bboxes / mlvl_bboxes.new_tensor(scale_factor)
             try:
                 scale_factor = torch.Tensor(scale_factor)[:2].cuda().unsqueeze(1).repeat(1, 36)
                 _mlvl_masks = mlvl_masks / scale_factor
@@ -468,30 +462,30 @@ class FCOS_Instance_Head_MIOU_MSKCTNESS(nn.Module):
         mlvl_scores = torch.cat([padding, mlvl_scores], dim=1)
         mlvl_centerness = torch.cat(mlvl_centerness)
 
+        centerness_factor = 0.5  # mask centerness is smaller than origin centerness, so add a constant is important or the score will be too low.
+        if self.mask_nms:
+            '''1 mask->min_bbox->nms, performance same to origin box'''
+            a = _mlvl_masks
+            _mlvl_bboxes = torch.stack([a[:, 0].min(1)[0],a[:, 1].min(1)[0],a[:, 0].max(1)[0],a[:, 1].max(1)[0]],-1)
+            det_bboxes, det_labels, det_masks = multiclass_nms_with_mask(
+                _mlvl_bboxes,
+                mlvl_scores,
+                _mlvl_masks,
+                cfg.score_thr,
+                cfg.nms,
+                cfg.max_per_img,
+                score_factors=mlvl_centerness + centerness_factor)
 
-
-        centerness_factor = 0.5 #mask centerness is smaller than origin centerness, so add a constant is important or the score will be too low.
-        '''1 mask->min bbox->nms, performance same to origin box'''
-        # a = _mlvl_masks
-        # _mlvl_bboxes = torch.stack([a[:, 0].min(1)[0],a[:, 1].min(1)[0],a[:, 0].max(1)[0],a[:, 1].max(1)[0]],-1)
-        # det_bboxes, det_labels, det_masks = multiclass_nms_with_mask(
-        #     _mlvl_bboxes,
-        #     mlvl_scores,
-        #     _mlvl_masks,
-        #     cfg.score_thr,
-        #     cfg.nms,
-        #     cfg.max_per_img,
-        #     score_factors=mlvl_centerness + centerness_factor)
-
-        '''2 origin bbox->nms, performance same to origin box'''
-        det_bboxes, det_labels, det_masks = multiclass_nms_with_mask(
-            _mlvl_bboxes,
-            mlvl_scores,
-            _mlvl_masks,
-            cfg.score_thr,
-            cfg.nms,
-            cfg.max_per_img,
-            score_factors=mlvl_centerness + centerness_factor)
+        else:
+            '''2 origin bbox->nms, performance same to mask->min_bbox'''
+            det_bboxes, det_labels, det_masks = multiclass_nms_with_mask(
+                _mlvl_bboxes,
+                mlvl_scores,
+                _mlvl_masks,
+                cfg.score_thr,
+                cfg.nms,
+                cfg.max_per_img,
+                score_factors=mlvl_centerness + centerness_factor)
 
         return det_bboxes, det_labels, det_masks
 
@@ -509,14 +503,14 @@ def distance2mask(points, distances, angles, max_shape=None):
         Tensor: Decoded masks.
     '''
     num_points = points.shape[0]
-    points = points[:,:,None].repeat(1,1,36)
+    points = points[:, :, None].repeat(1, 1, 36)
     c_x, c_y = points[:, 0], points[:, 1]
 
     sin = torch.sin(angles)
     cos = torch.cos(angles)
     sin = sin[None, :].repeat(num_points, 1)
     cos = cos[None, :].repeat(num_points, 1)
-    
+
     x = distances * sin + c_x
     y = distances * cos + c_y
 
@@ -524,7 +518,7 @@ def distance2mask(points, distances, angles, max_shape=None):
         x = x.clamp(min=0, max=max_shape[1] - 1)
         y = y.clamp(min=0, max=max_shape[0] - 1)
 
-    res = torch.cat([x[:,None,:],y[:,None,:]],dim=1)
+    res = torch.cat([x[:, None, :], y[:, None, :]], dim=1)
     return res
 
 
