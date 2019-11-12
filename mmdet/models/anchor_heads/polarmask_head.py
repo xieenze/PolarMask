@@ -61,8 +61,6 @@ class PolarMask_Head(nn.Module):
         self.norm_cfg = norm_cfg
         self.fp16_enabled = False
         # xez add for polarmask
-        self.center_sample = True
-        self.use_mask_center = True
         self.use_dcn = use_dcn
         self.mask_nms = mask_nms
 
