@@ -266,9 +266,10 @@ class Coco_SegFast_Dataset(CustomDataset):
 
         self.center_sample = True
         self.use_mask_center = True
+        self.all_contours = False
         self.radius = 1.5
         self.strides = [8, 16, 32, 64, 128]
-        self.regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512),(512, INF))
+        self.regress_ranges=[(-1, 64), (64, 128), (128, 256), (256, 512),(512, INF)]
         featmap_sizes = self.get_featmap_size(pad_shape)
         self.featmap_sizes = featmap_sizes
         num_levels = len(self.strides)
@@ -370,18 +371,17 @@ class Coco_SegFast_Dataset(CustomDataset):
         # condition1: inside a gt bbox
         #加入center sample
         if self.center_sample:
-            strides = [8, 16, 32, 64, 128]
             if self.use_mask_center:
                 inside_gt_bbox_mask = self.get_mask_sample_region(gt_bboxes,
                                                              mask_centers,
-                                                             strides,
+                                                             self.strides,
                                                              self.num_points_per_level,
                                                              xs,
                                                              ys,
                                                              radius=self.radius)
             else:
                 inside_gt_bbox_mask = self.get_sample_region(gt_bboxes,
-                                                             strides,
+                                                             self.strides,
                                                              self.num_points_per_level,
                                                              xs,
                                                              ys,
@@ -530,8 +530,10 @@ class Coco_SegFast_Dataset(CustomDataset):
 
     def get_single_centerpoint(self, mask):
         contour, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-        contour.sort(key=lambda x: cv2.contourArea(x), reverse=True)  # only save the biggest one
-
+        if self.all_contours:
+            contour = [np.concatenate(contour, axis=0)] # combine all contours yielding largest mask
+        else:     
+            contour.sort(key=lambda x: cv2.contourArea(x), reverse=True)  # only save the biggest contour
         '''debug IndexError: list index out of range'''
         count = contour[0][:, 0, :]
         try:
