@@ -534,7 +534,6 @@ class Coco_SegFast_Dataset(CustomDataset):
             contour = [np.concatenate(contour, axis=0)] # combine all contours yielding largest mask
         else:     
             contour.sort(key=lambda x: cv2.contourArea(x), reverse=True)  # only save the biggest contour
-
         '''debug IndexError: list index out of range'''
         count = contour[0][:, 0, :]
         try:
