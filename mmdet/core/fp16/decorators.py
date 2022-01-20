@@ -142,12 +142,8 @@ def force_fp32(apply_to=None, out_fp16=False):
             # convert the kwargs that need to be processed
             new_kwargs = dict()
             if kwargs:
-                for arg_name, arg_value in kwargs.items():
-                    if arg_name in args_to_cast:
-                        new_kwargs[arg_name] = cast_tensor_type(
-                            arg_value, torch.half, torch.float)
-                    else:
-                        new_kwargs[arg_name] = arg_value
+                new_kwargs = {arg_name: cast_tensor_type(arg_value, torch.half, torch.float) 
+                              if arg_name in args_to_cast else arg_value for (arg_name, arg_value) in kwargs.items()}
             # apply converted arguments to the decorated method
             output = old_func(*new_args, **new_kwargs)
             # cast the results back to fp32 if necessary
