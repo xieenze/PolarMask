@@ -1,3 +1,7 @@
+#ifndef AT_CHECK
+#define AT_CHECK TORCH_CHECK 
+#endif
+
 // Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 #include <torch/extension.h>
 

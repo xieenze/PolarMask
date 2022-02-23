@@ -1,3 +1,7 @@
+#ifndef AT_CHECK
+#define AT_CHECK TORCH_CHECK 
+#endif
+
 #include <torch/extension.h>
 
 #include <cmath>
